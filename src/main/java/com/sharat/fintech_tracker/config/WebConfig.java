@@ -9,7 +9,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:5173", "https://your-app-name.vercel.app") // Add your Vercel URL later
+                .allowedOrigins("http://localhost:5173", "https://fintrack-frontend-brown.vercel.app/") // Add your Vercel URL later
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
