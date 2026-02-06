@@ -4,50 +4,56 @@ import com.sharat.fintech_tracker.dto.IncomeDTO;
 import com.sharat.fintech_tracker.model.Income;
 import com.sharat.fintech_tracker.model.User;
 import com.sharat.fintech_tracker.repository.IncomeRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class IncomeService {
 
-    @Autowired
-    private IncomeRepository incomeRepository;
+    private final IncomeRepository incomeRepository;
+    private final UserService userService;
 
-    @Autowired
-    private UserService userService;
+    // Using Constructor Injection instead of @Autowired (Best Practice)
+    public IncomeService(IncomeRepository incomeRepository, UserService userService) {
+        this.incomeRepository = incomeRepository;
+        this.userService = userService;
+    }
 
-    public Income addIncome(IncomeDTO dto) {
-        User user = userService.getLoggedInUser();
+    @Transactional
+    public Income addIncome(IncomeDTO dto, User user) {
         Income income = new Income();
-        income.setSource(dto.getSource());
+        income.setCategory(dto.getCategory());
         income.setAmount(dto.getAmount());
-        income.setDate(dto.getDate());
+        income.setDescription(dto.getDescription());
+        income.setDate(dto.getDate()); // No more conversion error!
         income.setUser(user);
         return incomeRepository.save(income);
     }
 
-    public List<Income> addIncomes(List<IncomeDTO> dtos) {
-        User user = userService.getLoggedInUser();
-        List<Income> incomes = new ArrayList<>();
-        for (IncomeDTO dto : dtos) {
-            Income income = new Income();
-            income.setSource(dto.getSource());
-            income.setAmount(dto.getAmount());
-            income.setDate(dto.getDate());
-            income.setUser(user);
-            incomes.add(incomeRepository.save(income));
+    @Transactional
+    public List<Income> addIncomes(List<IncomeDTO> dtos, User user) {
+        return dtos.stream()
+                .map(dto -> addIncome(dto, user))
+                .collect(Collectors.toList());
+    }
+
+    public List<Income> getAll(User user) {
+        return incomeRepository.findByUser(user);
+    }
+
+    @Transactional
+    public void deleteIncome(Long id, User user) {
+        Income income = incomeRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Income record not found"));
+
+        // 🔐 Security: Check ownership
+        if (!income.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Unauthorized: Access denied to this income record.");
         }
-        return incomes;
-    }
 
-    public List<Income> getAll() {
-        return incomeRepository.findByUser(userService.getLoggedInUser());
-    }
-
-    public void deleteIncome(Long id) {
-        incomeRepository.deleteById(id);
+        incomeRepository.delete(income);
     }
 }

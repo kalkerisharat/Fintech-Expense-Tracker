@@ -33,7 +33,7 @@ public class PdfExportService {
         document.add(title);
 
         // Create table
-        Table table = new Table(UnitValue.createPercentArray(new float[]{1, 2, 2, 2, 3}))
+        Table table = new Table(UnitValue.createPercentArray(new float[] { 1, 2, 2, 2, 3 }))
                 .useAllAvailableWidth();
 
         // Add headers
@@ -46,7 +46,7 @@ public class PdfExportService {
         // Add data rows
         for (Expense expense : expenses) {
             table.addCell(new Cell().add(new Paragraph(String.valueOf(expense.getId()))));
-            table.addCell(new Cell().add(new Paragraph(expense.getCategory())));
+            table.addCell(new Cell().add(new Paragraph(expense.getCategory().toString())));
             table.addCell(new Cell().add(new Paragraph(String.valueOf(expense.getAmount()))));
             table.addCell(new Cell().add(new Paragraph(expense.getDate().toString())));
             table.addCell(new Cell().add(new Paragraph(expense.getDescription())));

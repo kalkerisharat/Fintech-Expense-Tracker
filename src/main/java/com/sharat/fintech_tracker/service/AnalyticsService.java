@@ -7,9 +7,13 @@ import java.time.Month;
 import java.util.Map;
 
 public interface AnalyticsService {
-    double getTotalExpenses(Long userId, Month month, int year);
-    double getTotalIncome(Long userId, Month month, int year);
-    Map<String, Double> getExpensesByCategory(Long userId, Month month, int year);
-    Map<String, Double> getRemainingBudgetByCategory(Long userId, Month month, int year);
+    double getTotalExpenses(User user, Month month, int year);
+
+    double getTotalIncome(User user, Month month, int year);
+
+    Map<String, Double> getExpensesByCategory(User user, Month month, int year);
+
+    Map<String, Double> getRemainingBudgetByCategory(User user, Month month, int year);
+
     MonthlyHistoryDTO getMonthlyHistory(User user);
 }

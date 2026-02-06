@@ -1,9 +1,16 @@
 package com.sharat.fintech_tracker.model;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import java.time.Month;
 
 @Entity
+@Table(name = "budgets")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class Budget {
 
     @Id
@@ -15,72 +22,22 @@ public class Budget {
     @Enumerated(EnumType.STRING)
     private ExpenseCategory category;
 
+    @Enumerated(EnumType.STRING) // Best practice to store Enums as Strings in DB
     private Month month;
+
     private int year;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private User user;
 
-    // Constructors
-    public Budget() {
-    }
-
+    // Custom constructor for manual instantiation
     public Budget(Double amount, ExpenseCategory category, Month month, int year, User user) {
         this.amount = amount;
         this.category = category;
         this.month = month;
         this.year = year;
-        this.user = user;
-    }
-
-    // Getters and setters
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Double getAmount() {
-        return amount;
-    }
-
-    public void setAmount(Double amount) {
-        this.amount = amount;
-    }
-
-    public ExpenseCategory getCategory() {
-        return category;
-    }
-
-    public void setCategory(ExpenseCategory category) {
-        this.category = category;
-    }
-
-    public Month getMonth() {
-        return month;
-    }
-
-    public void setMonth(Month month) {
-        this.month = month;
-    }
-
-    public int getYear() {
-        return year;
-    }
-
-    public void setYear(int year) {
-        this.year = year;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
         this.user = user;
     }
 }

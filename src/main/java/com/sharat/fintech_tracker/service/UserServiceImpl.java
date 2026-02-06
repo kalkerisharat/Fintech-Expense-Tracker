@@ -1,49 +1,55 @@
 package com.sharat.fintech_tracker.service;
 
-import com.sharat.fintech_tracker.model.Role;
 import com.sharat.fintech_tracker.model.User;
 import com.sharat.fintech_tracker.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-
-import java.util.List;
 
 @Service
-public class UserServiceImpl implements UserService, org.springframework.security.core.userdetails.UserDetailsService {
+public class UserServiceImpl implements UserService {
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
 
-    // Implement loadUserByUsername for Spring Security
+    public UserServiceImpl(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+
+    // ✅ Returns User directly (User implements UserDetails)
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
     }
 
+    // ✅ Used by AnalyticsController
     @Override
     public User getLoggedInUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName(); // email is used as the username
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new RuntimeException("No authenticated user");
+        }
+
+        // ✅ Principal is User directly (since User implements UserDetails)
+        Object principal = auth.getPrincipal();
+
+        if (principal instanceof User) {
+            return (User) principal;
+        } else if (principal instanceof String) {
+            String email = (String) principal;
+            return userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found: " + email));
+        }
+
+        throw new RuntimeException("Unknown principal type: " + principal.getClass());
     }
 
-    @Override
-    public User createUser(String username, String email, String password) {
-        // Create the user with a default role (e.g., USER)
-        List<Role> defaultRoles = List.of(Role.USER); // Assign USER role by default
-        User newUser = new User(username, email, password, defaultRoles);
-        return userRepository.save(newUser);
-    }
-
-    // Your custom method to find by email (no change)
     @Override
     public User findByEmail(String email) {
-        return userRepository.findByEmail(email).orElse(null);
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found: " + email));
     }
 }

@@ -1,13 +1,15 @@
 package com.sharat.fintech_tracker.service;
 
-import com.sharat.fintech_tracker.dto.LoginRequest;
 import com.sharat.fintech_tracker.dto.AuthResponse;
+import com.sharat.fintech_tracker.dto.LoginRequest;
 import com.sharat.fintech_tracker.dto.RegisterRequest;
+import com.sharat.fintech_tracker.model.Role;
 import com.sharat.fintech_tracker.model.User;
 import com.sharat.fintech_tracker.repository.UserRepository;
 import com.sharat.fintech_tracker.security.JwtUtil;
-import com.sharat.fintech_tracker.model.Role;
-
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -19,58 +21,67 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final AuthenticationManager authenticationManager;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
+    public AuthService(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            JwtUtil jwtUtil,
+            AuthenticationManager authenticationManager
+    ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.authenticationManager = authenticationManager;
     }
 
-    // Register a new user
+    // ---------------- REGISTER ----------------
     public void register(RegisterRequest request) {
-        System.out.println("Attempting to register user with email: " + request.getEmail());
 
-        String normalizedEmail = request.getEmail().toLowerCase();
-        String encodedPassword = passwordEncoder.encode(request.getPassword());
+        String email = request.getEmail().toLowerCase();
 
-        if (request.getRoles() == null || request.getRoles().isEmpty()) {
-            request.setRoles(List.of(Role.USER));
+        if (userRepository.findByEmail(email).isPresent()) {
+            throw new RuntimeException("Email already registered");
         }
 
+        List<Role> roles =
+                request.getRoles() == null || request.getRoles().isEmpty()
+                        ? List.of(Role.USER)
+                        : request.getRoles();
+
         User user = new User(
-                request.getUsername(), // optional username field if your model has it
-                normalizedEmail,
-                encodedPassword,
-                request.getRoles()
+                request.getUsername(),
+                email,
+                passwordEncoder.encode(request.getPassword()),
+                roles
         );
 
         userRepository.save(user);
-        System.out.println("User registered successfully with email: " + normalizedEmail);
     }
 
-    // Handle user login using email
+    // ---------------- LOGIN ----------------
     public AuthResponse login(LoginRequest request) {
-        String email = request.getEmail().toLowerCase();
-        System.out.println("Attempting to log in with email: " + email);
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> {
-                    System.out.println("User not found: " + email);
-                    return new RuntimeException("Invalid email or password");
-                });
+        // 🔐 Let Spring Security authenticate
+        Authentication authentication =
+                authenticationManager.authenticate(
+                        new UsernamePasswordAuthenticationToken(
+                                request.getEmail().toLowerCase(),
+                                request.getPassword()
+                        )
+                );
 
-        boolean passwordMatches = passwordEncoder.matches(request.getPassword(), user.getPassword());
-        if (!passwordMatches) {
-            System.out.println("Password mismatch for email: " + email);
-            throw new RuntimeException("Invalid email or password");
-        }
+        User user = userRepository
+                .findByEmail(request.getEmail().toLowerCase())
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        List<String> roles = user.getRoles().stream()
+        List<String> roles = user.getRoles()
+                .stream()
                 .map(Role::name)
                 .toList();
 
-        String token = jwtUtil.generateToken(user.getEmail(), roles); // using email as identifier
-        System.out.println("Generated JWT token for email: " + email);
+        String token = jwtUtil.generateToken(user.getEmail(), roles);
+
         return new AuthResponse(token, user.getEmail(), roles);
     }
 }

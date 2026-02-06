@@ -1,4 +1,5 @@
 package com.sharat.fintech_tracker.service;
+
 import com.sharat.fintech_tracker.model.Expense;
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +21,8 @@ public class EmailService {
         this.emailSender = emailSender;
     }
 
-    public void sendExpenseReportEmail(String to, List<Expense> expenses, ByteArrayResource pdfResource) throws MessagingException {
+    public void sendExpenseReportEmail(String to, List<Expense> expenses, ByteArrayResource pdfResource)
+            throws MessagingException {
         MimeMessage mimeMessage = emailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true);
         helper.setFrom("your-email@gmail.com");
@@ -32,5 +34,14 @@ public class EmailService {
         helper.addAttachment("expense-report.pdf", pdfResource);
 
         emailSender.send(mimeMessage);
+    }
+
+    public void sendSimpleEmail(String to, String subject, String text) {
+        org.springframework.mail.SimpleMailMessage message = new org.springframework.mail.SimpleMailMessage();
+        message.setFrom("your-email@gmail.com");
+        message.setTo(to);
+        message.setSubject(subject);
+        message.setText(text);
+        emailSender.send(message);
     }
 }

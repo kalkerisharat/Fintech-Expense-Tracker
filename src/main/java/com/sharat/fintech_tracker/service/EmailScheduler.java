@@ -1,6 +1,8 @@
 package com.sharat.fintech_tracker.service;
+
 import com.sharat.fintech_tracker.model.Expense;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.sharat.fintech_tracker.model.User;
+import com.sharat.fintech_tracker.repository.UserRepository; // You'll need this
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -12,21 +14,36 @@ public class EmailScheduler {
 
     private final EmailService emailService;
     private final ExpenseService expenseService;
+    private final UserRepository userRepository;
 
-    @Autowired
-    public EmailScheduler(EmailService emailService, ExpenseService expenseService) {
+    public EmailScheduler(EmailService emailService, ExpenseService expenseService, UserRepository userRepository) {
         this.emailService = emailService;
         this.expenseService = expenseService;
+        this.userRepository = userRepository;
     }
 
-    @Scheduled(cron = "0 0 8 1 * ?") // Example: Send email every 1st of the month at 8:00 AM
-    public void sendMonthlyReport() throws Exception {
-        List<Expense> expenses = expenseService.getAllExpenses();
-        ByteArrayResource pdfResource = generatePdfReportAsResource(expenses);
-        emailService.sendExpenseReportEmail("user@example.com", expenses, pdfResource);
+    @Scheduled(cron = "0 0 8 1 * ?") // 1st of every month at 8:00 AM
+    public void sendMonthlyReport() {
+        List<User> users = userRepository.findAll();
+
+        for (User user : users) {
+            try {
+                // Now passing the specific user to get their specific expenses
+                List<Expense> userExpenses = expenseService.getAllExpenses(user);
+
+                if (!userExpenses.isEmpty()) {
+                    ByteArrayResource pdfResource = generatePdfReportAsResource(userExpenses);
+                    emailService.sendExpenseReportEmail(user.getEmail(), userExpenses, pdfResource);
+                }
+            } catch (Exception e) {
+                // Log the error for this specific user and continue with others
+                System.err.println("Failed to send report to " + user.getEmail() + ": " + e.getMessage());
+            }
+        }
     }
 
     private ByteArrayResource generatePdfReportAsResource(List<Expense> expenses) {
+        // Implementation for PDF generation
         return null;
     }
 }

@@ -5,23 +5,20 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
-
 
 import java.io.IOException;
 
-@Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final UserService userService;
-    private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class); // Use Slf4j for logging
+    private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     public JwtAuthenticationFilter(JwtUtil jwtUtil, UserService userService) {
         this.jwtUtil = jwtUtil;
@@ -34,43 +31,51 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        // Retrieve the Authorization header
         final String authHeader = request.getHeader("Authorization");
 
-        // Check if the Authorization header is null or does not start with "Bearer"
+        logger.info("🔍 Request to: {}", request.getRequestURI());
+
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            logger.warn("⚠️ No Bearer token found");
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Extract the JWT token from the header
         final String jwt = authHeader.substring(7);
-        final String username = jwtUtil.extractUsername(jwt);
+        String email = null;
 
-        // If a username is found and the user is not already authenticated
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            try {
-                UserDetails userDetails = userService.loadUserByUsername(username);
+        try {
+            email = jwtUtil.extractUsername(jwt);
+            logger.info("✅ Extracted email from JWT: {}", email);
 
-                // Validate the token (now with both token and username)
-                if (jwtUtil.validateToken(jwt, username)) {
+            if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userDetails = userService.loadUserByUsername(email);
+                logger.info("✅ User loaded: {}", userDetails.getUsername());
+
+                if (jwtUtil.validateToken(jwt, email)) {
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
-                                    userDetails, null, userDetails.getAuthorities());
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
 
-                    // Set the details of the authentication token (e.g., request details)
-                    authToken.setDetails(request);
-
-                    // Set the authentication token in the security context
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                    logger.info("✅ User authenticated successfully: {}", email);
                 } else {
-                    logger.warn("Invalid JWT token for user: {}", username);
+                    logger.error("❌ Token validation failed for user: {}", email);
                 }
-            } catch (Exception e) {
-                logger.error("JWT token validation error for user: {}", username, e);
             }
+        } catch (io.jsonwebtoken.ExpiredJwtException e) {
+            logger.error("❌ JWT Token expired: {}", e.getMessage());
+        } catch (io.jsonwebtoken.MalformedJwtException e) {
+            logger.error("❌ Malformed JWT: {}", e.getMessage());
+        } catch (io.jsonwebtoken.security.SignatureException e) {
+            logger.error("❌ JWT Signature validation failed: {}", e.getMessage());
+        } catch (Exception e) {
+            logger.error("❌ JWT processing error: {}", e.getMessage(), e);
         }
-        // Continue the filter chain
+
         filterChain.doFilter(request, response);
     }
 }

@@ -1,73 +1,42 @@
 package com.sharat.fintech_tracker.model;
-import com.sharat.fintech_tracker.model.User;
+
 import jakarta.persistence.*;
-import java.util.Date;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import java.time.LocalDate;
 
 @Entity
+@Table(name = "income")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class Income {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String source;
-    private Double amount;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category", length = 50)
+    private IncomeCategory category;
 
-    @Temporal(TemporalType.DATE)
-    private Date date;
+    private Double amount;
+    private String description;
+
+    // LocalDate is the modern standard for JPA 3.x / Hibernate 6.x
+    private LocalDate date;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
-    private User user; // This should be your custom User entity
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private User user;
 
-    // Constructors
-    public Income() {}
-
-    public Income(String source, Double amount, Date date, User user) {
-        this.source = source;
+    // Manual constructor for quick creation if needed
+    public Income(IncomeCategory category, Double amount, LocalDate date, User user) {
+        this.category = category;
         this.amount = amount;
         this.date = date;
-        this.user = user;
-    }
-
-    // Getters and Setters
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getSource() {
-        return source;
-    }
-
-    public void setSource(String source) {
-        this.source = source;
-    }
-
-    public Double getAmount() {
-        return amount;
-    }
-
-    public void setAmount(Double amount) {
-        this.amount = amount;
-    }
-
-    public Date getDate() {
-        return date;
-    }
-
-    public void setDate(Date date) {
-        this.date = date;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
         this.user = user;
     }
 }

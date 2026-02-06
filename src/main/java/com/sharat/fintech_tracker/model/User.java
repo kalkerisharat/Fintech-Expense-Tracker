@@ -2,8 +2,10 @@ package com.sharat.fintech_tracker.model;
 
 import jakarta.persistence.*;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -26,60 +28,64 @@ public class User implements UserDetails {
 
     @Enumerated(EnumType.STRING)
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
+    @CollectionTable(
+            name = "user_roles",
+            joinColumns = @JoinColumn(name = "user_id")
+    )
     @Column(name = "role")
-    private List<Role> roles; // Using the enum List instead of Role entity
+    private List<Role> roles;
 
+    // ✅ JPA constructor
     public User() {}
 
+    // ✅ Used during registration
     public User(String username, String email, String password, List<Role> roles) {
-        this.username = username.toLowerCase(); // Normalize
-        this.email = email;
+        this.username = username.toLowerCase();
+        this.email = email.toLowerCase();
         this.password = password;
         this.roles = roles;
     }
 
-    // Getters and Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    // ================= UserDetails =================
 
-    public String getUsername() { return username; }
-    public void setUsername(String username) {
-        this.username = username.toLowerCase(); // Normalize
+    /**
+     * 🔑 CRITICAL FIX
+     * Spring Security username = EMAIL
+     * Must match JWT subject
+     */
+    @Override
+    public String getUsername() {
+        return email;
     }
 
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-
     @Override
-    public String getPassword() { return password; }
-    public void setPassword(String password) { this.password = password; }
+    public String getPassword() {
+        return password;
+    }
 
-    // Spring Security UserDetails methods
+    /**
+     * ✅ FIXED: Use ArrayList to create mutable list
+     * The previous .toList() created an immutable list causing UnsupportedOperationException
+     */
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return roles.stream()
-                .map(role -> (GrantedAuthority) () -> role.name()) // Use enum's name method
-                .toList();
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        if (roles != null) {
+            for (Role role : roles) {
+                authorities.add(new SimpleGrantedAuthority("ROLE_" + role.name()));
+            }
+        }
+        return authorities;
     }
 
-    @Override
-    public boolean isAccountNonExpired() { return true; }
+    @Override public boolean isAccountNonExpired() { return true; }
+    @Override public boolean isAccountNonLocked() { return true; }
+    @Override public boolean isCredentialsNonExpired() { return true; }
+    @Override public boolean isEnabled() { return true; }
 
-    @Override
-    public boolean isAccountNonLocked() { return true; }
+    // ================= Getters =================
 
-    @Override
-    public boolean isCredentialsNonExpired() { return true; }
-
-    @Override
-    public boolean isEnabled() { return true; }
-
-    public List<Role> getRoles() {
-        return roles;
-    }
-
-    public void setRoles(List<Role> roles) {
-        this.roles = roles;
-    }
+    public Long getId() { return id; }
+    public String getEmail() { return email; }
+    public List<Role> getRoles() { return roles; }
 }

@@ -1,18 +1,19 @@
 package com.sharat.fintech_tracker.service;
-import com.sharat.fintech_tracker.model.*;
+
 import com.sharat.fintech_tracker.dto.MonthlyHistoryDTO;
-import com.sharat.fintech_tracker.repository.*;
-import com.sharat.fintech_tracker.service.AnalyticsService;
+import com.sharat.fintech_tracker.model.Budget;
+import com.sharat.fintech_tracker.model.Expense;
+import com.sharat.fintech_tracker.model.Income;
+import com.sharat.fintech_tracker.model.User;
+import com.sharat.fintech_tracker.repository.BudgetRepository;
+import com.sharat.fintech_tracker.repository.ExpenseRepository;
+import com.sharat.fintech_tracker.repository.IncomeRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.Month;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import com.sharat.fintech_tracker.model.User;
-
 
 @Service
 public class AnalyticsServiceImpl implements AnalyticsService {
@@ -30,30 +31,31 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     }
 
     @Override
-    public double getTotalExpenses(Long userId, Month month, int year) {
-        return expenseRepository.findAll().stream()
-                .filter(e -> e.getUser().getId().equals(userId) &&
-                        e.getDate().getMonth().equals(month) &&
+    public double getTotalExpenses(User user, Month month, int year) {
+        return expenseRepository.findByUser(user).stream()
+                .filter(e -> e.getDate() != null &&
+                        e.getDate().getMonth() == month &&
                         e.getDate().getYear() == year)
                 .mapToDouble(Expense::getAmount)
                 .sum();
     }
 
     @Override
-    public double getTotalIncome(Long userId, Month month, int year) {
-        return incomeRepository.findAll().stream()
-                .filter(i -> i.getUser().getId().equals(userId) &&
-                        i.getDate().toInstant().atZone(java.time.ZoneId.systemDefault()).getMonth().equals(month) &&
-                        i.getDate().toInstant().atZone(java.time.ZoneId.systemDefault()).getYear() == year)
+    public double getTotalIncome(User user, Month month, int year) {
+        // CLEANED: Direct access now that Income uses LocalDate
+        return incomeRepository.findByUser(user).stream()
+                .filter(i -> i.getDate() != null &&
+                        i.getDate().getMonth() == month &&
+                        i.getDate().getYear() == year)
                 .mapToDouble(Income::getAmount)
                 .sum();
     }
 
     @Override
-    public Map<String, Double> getExpensesByCategory(Long userId, Month month, int year) {
-        return expenseRepository.findAll().stream()
-                .filter(e -> e.getUser().getId().equals(userId) &&
-                        e.getDate().getMonth().equals(month) &&
+    public Map<String, Double> getExpensesByCategory(User user, Month month, int year) {
+        return expenseRepository.findByUser(user).stream()
+                .filter(e -> e.getDate() != null &&
+                        e.getDate().getMonth() == month &&
                         e.getDate().getYear() == year)
                 .collect(Collectors.groupingBy(
                         e -> e.getCategory().toString(),
@@ -62,14 +64,9 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     }
 
     @Override
-    public Map<String, Double> getRemainingBudgetByCategory(Long userId, Month month, int year) {
-        List<Budget> budgets = budgetRepository.findAll().stream()
-                .filter(b -> b.getUser().getId().equals(userId) &&
-                        b.getMonth().equals(month) &&
-                        b.getYear() == year)
-                .toList();
-
-        Map<String, Double> spent = getExpensesByCategory(userId, month, year);
+    public Map<String, Double> getRemainingBudgetByCategory(User user, Month month, int year) {
+        List<Budget> budgets = budgetRepository.findByUserAndMonthAndYear(user, month, year);
+        Map<String, Double> spent = getExpensesByCategory(user, month, year);
         Map<String, Double> remaining = new HashMap<>();
 
         for (Budget budget : budgets) {
@@ -78,32 +75,24 @@ public class AnalyticsServiceImpl implements AnalyticsService {
             double spentAmount = spent.getOrDefault(category, 0.0);
             remaining.put(category, totalBudget - spentAmount);
         }
-
         return remaining;
     }
-    public MonthlyHistoryDTO getMonthlyHistory(User user) {
-        List<Expense> expenses = expenseRepository.findByUser(user);
-        List<Income> incomes = incomeRepository.findByUser(user);
 
+    @Override
+    public MonthlyHistoryDTO getMonthlyHistory(User user) {
         Map<String, Double> expenseMap = new TreeMap<>();
         Map<String, Double> incomeMap = new TreeMap<>();
-
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM");
 
-        for (Expense exp : expenses) {
-            if (exp.getDate() == null) continue;
-            String key = exp.getDate().format(formatter);
-            expenseMap.put(key, expenseMap.getOrDefault(key, 0.0) + exp.getAmount());
-        }
+        // CLEANED: Unified logic for both Income and Expense
+        expenseRepository.findByUser(user).stream()
+                .filter(e -> e.getDate() != null)
+                .forEach(e -> expenseMap.merge(e.getDate().format(formatter), e.getAmount(), Double::sum));
 
-        for (Income inc : incomes) {
-            if (inc.getDate() == null) continue;
-            LocalDate date = inc.getDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-            String key = date.format(formatter);
-            incomeMap.put(key, incomeMap.getOrDefault(key, 0.0) + inc.getAmount());
-        }
+        incomeRepository.findByUser(user).stream()
+                .filter(i -> i.getDate() != null)
+                .forEach(i -> incomeMap.merge(i.getDate().format(formatter), i.getAmount(), Double::sum));
 
         return new MonthlyHistoryDTO(expenseMap, incomeMap);
     }
-
 }

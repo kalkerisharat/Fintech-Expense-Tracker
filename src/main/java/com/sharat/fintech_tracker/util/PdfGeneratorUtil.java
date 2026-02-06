@@ -29,7 +29,7 @@ public class PdfGeneratorUtil {
         title.setTextAlignment(TextAlignment.CENTER);
         document.add(title);
 
-        Table table = new Table(new float[]{1, 2, 2, 2, 3});
+        Table table = new Table(new float[] { 1, 2, 2, 2, 3 });
 
         table.addCell(new Cell().add(new Paragraph("ID")));
         table.addCell(new Cell().add(new Paragraph("Category")));
@@ -39,7 +39,7 @@ public class PdfGeneratorUtil {
 
         for (Expense expense : expenses) {
             table.addCell(new Cell().add(new Paragraph(String.valueOf(expense.getId()))));
-            table.addCell(new Cell().add(new Paragraph(expense.getCategory())));
+            table.addCell(new Cell().add(new Paragraph(expense.getCategory().toString())));
             table.addCell(new Cell().add(new Paragraph(String.valueOf(expense.getAmount()))));
             table.addCell(new Cell().add(new Paragraph(expense.getDate().toString())));
             table.addCell(new Cell().add(new Paragraph(expense.getDescription())));

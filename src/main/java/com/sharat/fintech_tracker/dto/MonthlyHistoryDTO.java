@@ -1,6 +1,9 @@
 package com.sharat.fintech_tracker.dto;
 
+import lombok.Data;
+
 import java.util.Map;
+@Data
 
 public class MonthlyHistoryDTO {
     private Map<String, Double> monthlyExpenses;
