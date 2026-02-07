@@ -77,7 +77,8 @@ public class SecurityConfig {
         config.setAllowedOrigins(List.of(
                 "http://localhost:5173",
                 "http://localhost:5174",
-                "https://*.vercel.app"
+                "https://fintrack-frontend-brown.vercel.app", // Your main domain
+                "https://fintrack-frontend-*.vercel.app"
         ));
 
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
