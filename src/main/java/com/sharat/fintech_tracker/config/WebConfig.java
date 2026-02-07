@@ -1,3 +1,4 @@
+/*
 package com.sharat.fintech_tracker.config;
 
 import org.springframework.context.annotation.Configuration;
@@ -14,4 +15,4 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedHeaders("*")
                 .allowCredentials(true);
     }
-}
+}*/
