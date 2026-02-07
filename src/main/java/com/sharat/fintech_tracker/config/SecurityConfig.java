@@ -5,9 +5,9 @@ import com.sharat.fintech_tracker.security.JwtUtil;
 import com.sharat.fintech_tracker.service.UserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -53,14 +53,17 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // 1. CORS MUST be first to handle preflight OPTIONS requests
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // 2. Disable CSRF (not needed for stateless JWT APIs)
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // ✅ Explicitly link CORS
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // 🔥 Ensure these match your Controller @RequestMapping
+                        // Allow OPTIONS requests for all endpoints
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        // Allow public access to Auth endpoints
                         .requestMatchers("/api/v1/auth/**").permitAll()
-                        // ✅ Permitting OPTIONS is critical for CORS
-                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                        // Protect everything else
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
@@ -73,17 +76,18 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // 🎯 EXACT MATCH: No trailing slashes here
-        config.setAllowedOrigins(List.of(
+        // 🌟 Use setAllowedOriginPatterns to allow the wildcard '*'
+        config.setAllowedOriginPatterns(List.of(
                 "http://localhost:5173",
                 "http://localhost:5174",
-                "https://fintrack-frontend-brown.vercel.app", // Your main domain
-                "https://fintrack-frontend-*.vercel.app"
+                "https://fintrack-frontend-brown.vercel.app",
+                "https://fintrack-frontend-*.vercel.app" // 👈 This now works!
         ));
 
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
+        config.setAllowedHeaders(List.of("Authorization", "Cache-Control", "Content-Type"));
         config.setAllowCredentials(true);
+        config.setMaxAge(3600L); // Cache preflight response for 1 hour
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
